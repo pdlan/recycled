@@ -1,11 +1,12 @@
 #ifndef RECYCLED_INCLUDE_CONNECTION_H
 #define RECYCLED_INCLUDE_CONNECTION_H
 #include <string>
+#include <vector>
 #include <set>
 #include <map>
 
 namespace recycled {
-enum class HTTPMethod {GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, UnSupport};
+enum class HTTPMethod {GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, Other};
 
 static const std::set<int> StatusCodes = {
     100, 101,
@@ -64,6 +65,12 @@ class Connection {
         virtual bool write(const char *data, size_t length) = 0;
         virtual bool write(const std::string &str) = 0;
         virtual bool set_status(int status_code, const std::string &reason = "") = 0;
+        virtual const std::string & get_query_argument(const std::string &key) const = 0;
+        virtual std::vector<std::string> get_query_arguments(const std::string &key) const = 0;
+        virtual const std::string & get_body_argument(const std::string &key) const = 0;
+        virtual std::vector<std::string> get_body_arguments(const std::string &key) const = 0;
+        virtual const std::string & get_argument(const std::string &key) const = 0;
+        virtual std::vector<std::string> get_arguments(const std::string &key) const = 0;
         virtual void finish() = 0;
 };
 }

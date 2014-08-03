@@ -1,13 +1,15 @@
-#include <string.h>
 #include <string>
+#include <set>
+#include <vector>
 #include <recycled/connection.h>
+#include <recycled/httpconnection.h>
 #include <recycled/httpserver.h>
 #include <recycled/ioloop.h>
+#include <recycled/router.h>
 
 using namespace recycled;
 
 void handler(Connection &conn) {
-    conn.write("test");
     conn.finish();
 }
 

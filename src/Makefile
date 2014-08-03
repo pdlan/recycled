@@ -1,6 +1,6 @@
 CXX=clang++
 INCLUDE=../include
-CXXFLAGS=-std=c++11 -Wall -I $(INCLUDE)
+CXXFLAGS=-std=c++11 -Wall -I $(INCLUDE) -g
 all: ioloop.o httpserver.o httpconnection.o test
 ioloop.o: $(INCLUDE)/recycled/ioloop.h ioloop.cpp
 	$(CXX) $(CXXFLAGS) ioloop.cpp -c
@@ -8,7 +8,9 @@ httpserver.o: ioloop.o $(INCLUDE)/recycled/httpserver.h $(INCLUDE)/recycled/conn
 	$(CXX) $(CXXFLAGS) httpserver.cpp -c
 httpconnection.o: $(INCLUDE)/recycled/httpconnection.h $(INCLUDE)/recycled/connection.h httpconnection.cpp
 	$(CXX) $(CXXFLAGS) httpconnection.cpp -c
-test: ioloop.o httpserver.o httpconnection.o
-	$(CXX) $(CXXFLAGS) test.cpp *.o -o test -levent
+router.o: $(INCLUDE)/recycled/router.h router.cpp
+	$(CXX) $(CXXFLAGS) router.cpp -c
+test: ioloop.o httpserver.o httpconnection.o router.o test.cpp
+	$(CXX) $(CXXFLAGS) test.cpp *.o -o test -levent -lpcre
 clean:
 	rm *.o test
