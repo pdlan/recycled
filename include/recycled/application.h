@@ -24,7 +24,7 @@ class Application {
         ~Application();
         const Application & operator=(const Application &other) = delete;
         template<typename... Arguments>
-        bool listen(Arguments... args);
+        void listen(Arguments... args);
     private:
         T *server;
         Router *router;
@@ -58,8 +58,10 @@ Application<T>::~Application() {
 }
 
 template<typename T> template<typename... Arguments>
-bool Application<T>::listen(Arguments... args) {
-    return this->server->listen(args...);
+void Application<T>::listen(Arguments... args) {
+    if (!this->server->listen(args...)) {
+        throw ApplicationException("cannot listen.");
+    }
 }
 
 template<typename T>
