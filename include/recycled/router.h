@@ -17,7 +17,12 @@ struct HandlerStruct {
 class Router {
     public:
         Router();
-        bool add(std::vector<HandlerStruct> handlers);
+        ~Router();
+        Router(Router &other) = delete;
+        const Router & operator=(Router &other) = delete;
+        bool set_error_handler(const ErrorHandler &handler);
+        const ErrorHandler & get_error_handler();
+        bool add(const std::vector<HandlerStruct> &handlers);
         bool add(const std::string &pattern, const RequestHandler &handler,
                  const std::set<HTTPMethod> &methods);
         RequestHandler route(const std::string &path,

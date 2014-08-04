@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string>
 #include <sstream>
 #include <set>
@@ -13,7 +14,28 @@ Router::Router() {
     this->error_handler = default_error_handler;
 }
 
-bool Router::add(std::vector<HandlerStruct> handlers) {
+Router::~Router() {
+    for (auto &i: this->handlers) {
+        pcre *re = std::get<0>(i);
+        if (re) {
+            pcre_free(re);
+        }
+    }
+}
+
+bool Router::set_error_handler(const ErrorHandler &handler) {
+    if (!handler) {
+        return false;
+    }
+    this->error_handler = handler;
+    return true;
+}
+
+const ErrorHandler & Router::get_error_handler() {
+    return this->error_handler;
+}
+
+bool Router::add(const std::vector<HandlerStruct> &handlers) {
     for (auto &i: handlers) {
         if (!this->add(i.pattern, i.handler, i.methods)) {
             return false;
@@ -29,6 +51,7 @@ bool Router::add(const std::string &pattern, const RequestHandler &handler,
     const char *pattern_float = "(\\d*.\\d+|\\d+.\\d*)";
     std::ostringstream pattern_buf, arg_buf1, arg_buf2;
     std::vector<std::string> arg_names;
+    pattern_buf << '^';
     int state = 1;
     bool escape = false;
     for (size_t i = 0; i < pattern.length(); ++i) {
@@ -226,8 +249,10 @@ bool Router::add(const std::string &pattern, const RequestHandler &handler,
                 break;
         }
     }
-    if (state != 1)
+    if (state != 1) {
         return false;
+    }
+    pattern_buf << '$';
     const char *errmsg = NULL;
     int offset = 0;
     pcre *re = pcre_compile(pattern_buf.str().c_str(),
@@ -235,8 +260,9 @@ bool Router::add(const std::string &pattern, const RequestHandler &handler,
                             &errmsg,
                             &offset,
                             NULL);
-    if (!re)
+    if (!re) {
         return false;
+    }
     this->handlers.push_back(std::forward_as_tuple(re, handler, methods, arg_names));
     return true;
 }
@@ -247,8 +273,9 @@ RequestHandler Router::route(const std::string &path,
     const size_t OVecCount = 128;
     for (auto &i: this->handlers) {
         pcre *re = std::get<0>(i);
-        if (!re)
+        if (!re) {
             continue;
+        }
         const RequestHandler &handler = std::get<1>(i);
         const std::set<HTTPMethod> &methods = std::get<2>(i);
         const std::vector<std::string> &arg_names = std::get<3>(i);
@@ -262,10 +289,12 @@ RequestHandler Router::route(const std::string &path,
                                0,
                                ovector,
                                OVecCount);
-            if (rc <= 0)
+            if (rc <= 0) {
                 continue;
-            if ((rc - 1) != arg_names.size())
+            }
+            if ((rc - 1) != arg_names.size()) {
                 continue;
+            }
             for (size_t i = 1; i < rc; ++i) {
                 size_t length = ovector[2*i+1] - ovector[2*i];
                 const std::string &arg_value = path.substr(ovector[2*i], length);
@@ -280,5 +309,7 @@ RequestHandler Router::route(const std::string &path,
 }
 
 void Router::default_error_handler(int code, Connection &conn) {
-    printf("HTTP ERROR %d\n", code);
+    fprintf(stderr, "HTTP ERROR %d\n", code);
+    conn.set_status(code);
+    conn.finish();
 }

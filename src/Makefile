@@ -10,7 +10,7 @@ httpconnection.o: $(INCLUDE)/recycled/httpconnection.h $(INCLUDE)/recycled/conne
 	$(CXX) $(CXXFLAGS) httpconnection.cpp -c
 router.o: $(INCLUDE)/recycled/router.h router.cpp
 	$(CXX) $(CXXFLAGS) router.cpp -c
-test: ioloop.o httpserver.o httpconnection.o router.o test.cpp
+test: ioloop.o httpserver.o httpconnection.o router.o test.cpp $(INCLUDE)/recycled/application.h
 	$(CXX) $(CXXFLAGS) test.cpp *.o -o test -levent -lpcre
 clean:
 	rm *.o test

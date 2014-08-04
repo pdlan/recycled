@@ -4,6 +4,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include "recycled/handler.h"
 
 namespace recycled {
 enum class HTTPMethod {GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, Other};
@@ -60,18 +61,39 @@ static const std::map<int, const char *> StatusReasons = {
     {505, "HTTP Version not supported"}
 };
 
+typedef std::vector<std::string> SVector;
+typedef std::map<std::string, std::string> SSMap;
+typedef std::multimap<std::string, std::string> SSMultiMap;
+
 class Connection {
     public:
         virtual bool write(const char *data, size_t length) = 0;
         virtual bool write(const std::string &str) = 0;
-        virtual bool set_status(int status_code, const std::string &reason = "") = 0;
-        virtual const std::string & get_query_argument(const std::string &key) const = 0;
-        virtual std::vector<std::string> get_query_arguments(const std::string &key) const = 0;
-        virtual const std::string & get_body_argument(const std::string &key) const = 0;
-        virtual std::vector<std::string> get_body_arguments(const std::string &key) const = 0;
-        virtual const std::string & get_argument(const std::string &key) const = 0;
-        virtual std::vector<std::string> get_arguments(const std::string &key) const = 0;
+        virtual bool set_status(int status_code, const std::string &reason="") = 0;
+        virtual HTTPMethod get_method() const = 0;
+        virtual std::string get_path() const = 0;
+        virtual std::string get_query_argument(const std::string &key) const = 0;
+        virtual std::string get_body_argument(const std::string &key) const = 0;
+        virtual std::string get_argument(const std::string &key) const = 0;
+        virtual std::string get_path_argument(const std::string &key) const = 0;
+        virtual std::string get_header(const std::string &key) const = 0;
+        virtual SVector get_query_arguments(const std::string &key) const = 0;
+        virtual SVector get_body_arguments(const std::string &key) const = 0;
+        virtual SVector get_arguments(const std::string &key) const = 0;
+        // Not including path arguments.
+        virtual const SSMap & get_path_arguments() const = 0;
+        virtual const SSMap & get_headers() const = 0;
+        virtual SSMap & get_path_arguments() = 0;
+        virtual bool set_error_handler(const ErrorHandler &handler) = 0;
+        //virtual void set_cookie(const std::string &key, const std::string &value) = 0;
+        virtual bool add_header(const std::string &key, const std::string &value) = 0;
+        virtual bool remove_header(const std::string &key) = 0;
+        virtual void clear_headers() = 0;
+        virtual bool flush() = 0;
         virtual void finish() = 0;
+        virtual bool send_error(int status=500) = 0;
+        virtual bool redirect(const std::string &url, int status=302) = 0;
+        virtual bool is_finished() const = 0;
 };
 }
 #endif

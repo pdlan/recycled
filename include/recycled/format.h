@@ -12,7 +12,7 @@ namespace format {
 class FormatException: public std::exception {
     public:
         FormatException(const std::string &msg): msg(msg) {}
-        ~FormatException() noexcept{}
+        ~FormatException() noexcept {}
         const char * what() const noexcept {return this->msg.c_str();}
     private:
         std::string msg;

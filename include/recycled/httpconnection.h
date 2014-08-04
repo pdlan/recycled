@@ -24,27 +24,51 @@ static const std::map<evhttp_cmd_type, HTTPMethod> Methods = {
 class HTTPConnection: public Connection {
     public:
         HTTPConnection(evhttp_request *evreq);
+        HTTPConnection(const HTTPConnection &other) = delete;
         ~HTTPConnection();
+        const HTTPConnection & operator=(const HTTPConnection &other) = delete;
         bool initialize();
         bool write(const char *data, size_t length);
         bool write(const std::string &str);
         bool set_status(int status_code, const std::string &reason = "");
-        const std::string & get_query_argument(const std::string &key) const;
-        std::vector<std::string> get_query_arguments(const std::string &key) const;
-        const std::string & get_body_argument(const std::string &key) const;
-        std::vector<std::string> get_body_arguments(const std::string &key) const;
-        const std::string & get_argument(const std::string &key) const;
-        std::vector<std::string> get_arguments(const std::string &key) const;
+        HTTPMethod get_method() const;
+        std::string get_path() const;
+        std::string get_query_argument(const std::string &key) const;
+        std::string get_body_argument(const std::string &key) const;
+        std::string get_argument(const std::string &key) const;
+        std::string get_path_argument(const std::string &key) const;
+        std::string get_header(const std::string &key) const;
+        SVector get_query_arguments(const std::string &key) const;
+        SVector get_body_arguments(const std::string &key) const;
+        SVector get_arguments(const std::string &key) const;
+        const SSMap & get_path_arguments() const;
+        const SSMap & get_headers() const;
+        SSMap & get_path_arguments();
+        bool set_error_handler(const ErrorHandler &handler);
+        //void set_cookie(const std::string &key, const std::string &value);
+        bool add_header(const std::string &key, const std::string &value);
+        bool remove_header(const std::string &key);
+        void clear_headers();
+        bool flush();
+        bool send_error(int status=500);
         void finish();
+        bool redirect(const std::string &url, int status=302);
+        bool is_finished() const;
     private:
         evhttp_request *evreq;
+        ErrorHandler error_handler;
         std::string uri, path;
         evbuffer *input_buffer, *output_buffer;
-        evkeyvalq *input_headers, *output_headers;
-        std::multimap<std::string, std::string> query_arguments, body_arguments;
+        evkeyvalq *output_headers;
+        SSMap input_headers;
+        SSMultiMap query_arguments, body_arguments;
+        SSMap path_arguments;
+        SSMap input_cookies, output_cookies;
         int status_code;
         std::string status_reason;
         HTTPMethod method;
+        bool finished;
+        bool chunked;
 };
 }
 #endif

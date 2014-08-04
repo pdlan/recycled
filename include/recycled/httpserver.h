@@ -10,7 +10,9 @@ namespace recycled {
 class HTTPServer {
     public:
         HTTPServer(RequestHandler handler);
+        HTTPServer(const HTTPServer &other) = delete;
         ~HTTPServer() = default;
+        const HTTPServer & operator=(const HTTPServer &other) = delete;
         bool initialize();
         bool listen(uint16_t port, const std::string &ip = "0.0.0.0");
     private:
