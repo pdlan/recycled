@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <string>
-#include <set>
-#include <vector>
 #include <recycled.h>
 
 using namespace recycled;

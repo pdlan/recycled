@@ -1,11 +1,10 @@
-all: format connection
+CXX=g++
+INCLUDE=../include
+CXXFLAGS=-std=c++11 -Wall -I $(INCLUDE)
+all: format hello
 format:
-	@echo "Testing format utility"
-	clang++ format.cpp -I ../include/ -std=c++11 -o format.test -g -Wall
-	./format.test
-connection:
-	@echo "Testing connection"
-	clang++ connection.cpp -I ../include/ -std=c++11 -o connection.test -g -Wall
-	./connection.test
+	$(CXX) $(CXXFLAGS) format.cpp -o format.test
+hello:
+	$(CXX) $(CXXFLAGS) hello.cpp -o hello.test ../librecycled.a -lpcre -levent
 clean:
 	rm *.test

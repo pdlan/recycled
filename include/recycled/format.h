@@ -24,7 +24,7 @@ std::string safe_format(const char *specifier, T value) {
     format += specifier;
     size_t buf_length = format.length() * 2;
     char *buf = new char[buf_length];
-    int need_length = snprintf(buf, buf_length, format.c_str(), value);
+    size_t need_length = snprintf(buf, buf_length, format.c_str(), value);
     if (need_length >= buf_length) {
         delete buf;
         buf = new char[need_length + 1];
@@ -43,7 +43,7 @@ safe_format<std::string>(const char *specifier,
     format += specifier;
     size_t buf_length = format.length() * 2;
     char *buf = new char[buf_length];
-    int need_length = snprintf(buf, buf_length, format.c_str(), value.c_str());
+    size_t need_length = snprintf(buf, buf_length, format.c_str(), value.c_str());
     if (need_length >= buf_length) {
         delete buf;
         buf = new char[need_length + 1];

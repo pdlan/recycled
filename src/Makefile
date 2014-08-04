@@ -1,16 +1,18 @@
 CXX=clang++
 INCLUDE=../include
-CXXFLAGS=-std=c++11 -Wall -I $(INCLUDE) -g
-all: ioloop.o httpserver.o httpconnection.o test
-ioloop.o: $(INCLUDE)/recycled/ioloop.h ioloop.cpp
+CXXFLAGS=-std=c++11 -Wall -I $(INCLUDE)
+all: ioloop.o httpserver.o httpconnection.o recycled
+headers: $(INCLUDE)/recycled/*.h
+ioloop.o: headers ioloop.cpp
 	$(CXX) $(CXXFLAGS) ioloop.cpp -c
-httpserver.o: ioloop.o $(INCLUDE)/recycled/httpserver.h $(INCLUDE)/recycled/connection.h httpserver.cpp
+httpserver.o: headers httpserver.cpp
 	$(CXX) $(CXXFLAGS) httpserver.cpp -c
-httpconnection.o: $(INCLUDE)/recycled/httpconnection.h $(INCLUDE)/recycled/connection.h httpconnection.cpp
+httpconnection.o: headers httpconnection.cpp
 	$(CXX) $(CXXFLAGS) httpconnection.cpp -c
-router.o: $(INCLUDE)/recycled/router.h router.cpp
+router.o: headers router.cpp
 	$(CXX) $(CXXFLAGS) router.cpp -c
-test: ioloop.o httpserver.o httpconnection.o router.o test.cpp $(INCLUDE)/recycled/application.h
-	$(CXX) $(CXXFLAGS) test.cpp *.o -o test -levent -lpcre
+recycled: ioloop.o httpserver.o httpconnection.o router.o
+	ar rcs librecycled.a ioloop.o httpserver.o httpconnection.o router.o
+	mv librecycled.a ..
 clean:
-	rm *.o test
+	rm *.o ../librecycled.a
