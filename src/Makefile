@@ -11,8 +11,10 @@ httpconnection.o: headers httpconnection.cpp
 	$(CXX) $(CXXFLAGS) httpconnection.cpp -c
 router.o: headers router.cpp
 	$(CXX) $(CXXFLAGS) router.cpp -c
-recycled: ioloop.o httpserver.o httpconnection.o router.o
-	ar rcs librecycled.a ioloop.o httpserver.o httpconnection.o router.o
+handler.o: headers handler.cpp
+	$(CXX) $(CXXFLAGS) handler.cpp -c
+recycled: ioloop.o httpserver.o httpconnection.o router.o handler.o
+	ar rcs librecycled.a ioloop.o httpserver.o httpconnection.o router.o handler.o
 	mv librecycled.a ..
 clean:
 	rm *.o ../librecycled.a
