@@ -28,11 +28,12 @@ class HTTPConnection: public Connection {
         ~HTTPConnection();
         const HTTPConnection & operator=(const HTTPConnection &other) = delete;
         bool initialize();
-        bool write(const char *data, size_t length);
+        bool write(const char *data, size_t size);
         bool write(const std::string &str);
         bool set_status(int status_code, const std::string &reason = "");
         HTTPMethod get_method() const;
         std::string get_path() const;
+        std::string get_uri() const;
         std::string get_query_argument(const std::string &key) const;
         std::string get_body_argument(const std::string &key) const;
         std::string get_argument(const std::string &key) const;

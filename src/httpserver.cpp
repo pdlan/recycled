@@ -9,7 +9,7 @@
 
 using namespace recycled;
 
-HTTPServer::HTTPServer(RequestHandler request_handler):
+HTTPServer::HTTPServer(const RequestHandler &request_handler):
     request_handler(request_handler), event_http(nullptr) {}
 
 bool HTTPServer::initialize() {

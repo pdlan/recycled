@@ -167,11 +167,11 @@ bool HTTPConnection::initialize() {
     return true;
 }
 
-bool HTTPConnection::write(const char *data, size_t length) {
+bool HTTPConnection::write(const char *data, size_t size) {
     if (!this->output_buffer) {
         return false;
     }
-    if (evbuffer_add(this->output_buffer, data, length) != 0) {
+    if (evbuffer_add(this->output_buffer, data, size) != 0) {
         return false;
     }
     return true;
@@ -205,6 +205,10 @@ HTTPMethod HTTPConnection::get_method() const {
 
 std::string HTTPConnection::get_path() const {
     return this->path;
+}
+
+std::string HTTPConnection::get_uri() const {
+    return this->uri;
 }
 
 std::string HTTPConnection::get_query_argument(const std::string &key) const {
