@@ -3,6 +3,7 @@
 #include <sys/queue.h>
 #include <string>
 #include <vector>
+#include <tuple>
 #include <map>
 #include <event2/event.h>
 #include <event2/keyvalq_struct.h>
@@ -20,6 +21,13 @@ static const std::map<evhttp_cmd_type, HTTPMethod> Methods = {
     {EVHTTP_REQ_OPTIONS, HTTPMethod::OPTIONS},
     {EVHTTP_REQ_PATCH,   HTTPMethod::PATCH}
 };
+
+typedef std::tuple<std::string,
+                   bool,
+                   time_t,
+                   std::string,
+                   std::string,
+                   bool> CookieInfo;
 
 class HTTPConnection: public Connection {
     public:
@@ -39,14 +47,26 @@ class HTTPConnection: public Connection {
         std::string get_argument(const std::string &key) const;
         std::string get_path_argument(const std::string &key) const;
         std::string get_header(const std::string &key) const;
+        std::string get_cookie(const std::string &key) const;
         SVector get_query_arguments(const std::string &key) const;
         SVector get_body_arguments(const std::string &key) const;
         SVector get_arguments(const std::string &key) const;
         const SSMap & get_path_arguments() const;
         const SSMap & get_headers() const;
+        const SSMap & get_cookies() const;
         SSMap & get_path_arguments();
         bool set_error_handler(const ErrorHandler &handler);
-        //void set_cookie(const std::string &key, const std::string &value);
+        bool set_cookie(const std::string &key,
+                        const std::string &value,
+                        bool secure = false,
+                        time_t expires=3600,
+                        const std::string &domain="",
+                        const std::string &path="/",
+                        bool http_only = false);
+        bool remove_cookie(const std::string &key,
+                           const std::string &domain="",
+                           const std::string &path="");
+        void clear_cookies();
         bool add_header(const std::string &key, const std::string &value);
         bool remove_header(const std::string &key);
         void clear_headers();
@@ -64,7 +84,8 @@ class HTTPConnection: public Connection {
         SSMap input_headers;
         SSMultiMap query_arguments, body_arguments;
         SSMap path_arguments;
-        SSMap input_cookies, output_cookies;
+        SSMap input_cookies;
+        std::multimap<std::string, CookieInfo> output_cookies;
         int status_code;
         std::string status_reason;
         HTTPMethod method;

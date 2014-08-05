@@ -5,7 +5,8 @@ using namespace recycled;
 
 // we suggest using it.
 void function_handler(Connection &conn) {
-    conn.write("hello, function handler.");
+    //conn.write("hello, function handler.");
+    conn.write(conn.get_cookie("test"));
 }
 
 // you can use std::bind to convert your custom function to handler function.

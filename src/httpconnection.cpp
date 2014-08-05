@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 #include <stdint.h>
 #include <string.h>
 #include <malloc.h>
@@ -6,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <tuple>
 #include <map>
 #include <functional>
 #include <event2/event.h>
@@ -39,13 +41,15 @@ bool parse_cookie(const std::string &str, SSMap &dest) {
     SSMap cookies;
     std::ostringstream key_buf, value_buf;
     int state = 1;
-    for (auto &ch: str) {
+    for (size_t i = 0; i <= str.length(); ++i) {
+        char ch = str[i];
         switch (state) {
             case 1:
                 switch (ch) {
                     case '=':
                         state = 2;
                         break;
+                    case '\0':
                     case ';':
                         return false;
                     default:
@@ -59,6 +63,12 @@ bool parse_cookie(const std::string &str, SSMap &dest) {
                         break;
                     case '=':
                         return false;
+                    case '\0': {
+                        const std::string &key = key_buf.str();
+                        const std::string &value = value_buf.str();
+                        cookies.insert(std::make_pair(key, value));
+                        state = 1;
+                    }
                     default:
                         value_buf << ch;
                 }
@@ -70,19 +80,51 @@ bool parse_cookie(const std::string &str, SSMap &dest) {
                     case '=':
                     case ';':
                         return false;
-                    default:
+                    default: {
                         const std::string &key = key_buf.str();
                         const std::string &value = value_buf.str();
-                        printf("%s %s\n", key.c_str(), value.c_str());
+                        cookies.insert(std::make_pair(key, value));
                         key_buf.str("");
                         value_buf.str("");
                         key_buf << ch;
                         state = 1;
+                    }
                 }
         }
     }
     dest = cookies;
     return true;
+}
+
+std::string make_cookie_header(const std::string &key, const CookieInfo &info) {
+    const std::string &value = std::get<0>(info);
+    bool secure = std::get<1>(info);
+    time_t expires = std::get<2>(info);
+    const std::string &domain = std::get<3>(info);
+    const std::string &path = std::get<4>(info);
+    bool http_only = std::get<5>(info);
+    const int BufferSize = 128;
+    char expires_buf[BufferSize];
+    std::ostringstream header;
+    header << key << "=" << value;
+    if (!domain.empty()) {
+        header << "; " << "Domain=" << domain;
+    }
+    if (!path.empty()) {
+        header << "; " << "Path=" << path;
+    }
+    time_t now = time(NULL);
+    time_t expires_stamp = now + expires;
+    tm *expires_time = gmtime(&expires_stamp);
+    strftime(expires_buf, BufferSize, "%a, %d-%b-%Y %H:%M:%S GMT", expires_time);
+    header << "; Expires=" << expires_buf;
+    if (secure) {
+        header << "; Secure";
+    }
+    if (http_only) {
+        header << "; HttpOnly";
+    }
+    return header.str();
 }
 
 HTTPConnection::HTTPConnection(evhttp_request *evreq):
@@ -157,6 +199,8 @@ bool HTTPConnection::initialize() {
         }
         delete buffer;
     }
+    const std::string &cookie_header = this->get_header("Cookie");
+    parse_cookie(cookie_header, this->input_cookies);
     this->set_status(200);
     auto it = Methods.find(evhttp_request_get_command(this->evreq));
     if (it != Methods.end()) {
@@ -186,7 +230,7 @@ bool HTTPConnection::set_status(int status_code, const std::string &reason) {
         return false;
     }
     this->status_code = status_code;
-    if (reason == "") {
+    if (reason.empty()) {
         auto it = StatusReasons.find(status_code);
         if (it != StatusReasons.end()) {
             this->status_reason = it->second;
@@ -233,11 +277,11 @@ std::string HTTPConnection::get_body_argument(const std::string &key) const {
 
 std::string HTTPConnection::get_argument(const std::string &key) const {
     const std::string &query_argument = this->get_query_argument(key);
-    if (query_argument != "") {
+    if (!query_argument.empty()) {
         return query_argument;
     }
     const std::string &body_argument = this->get_body_argument(key);
-    if (body_argument != "") {
+    if (!body_argument.empty()) {
         return body_argument;
     }
     return "";
@@ -255,6 +299,15 @@ std::string HTTPConnection::get_path_argument(const std::string &key) const {
 std::string HTTPConnection::get_header(const std::string &key) const {
     auto it = this->input_headers.find(key);
     if (it != this->input_headers.end()) {
+        return it->second;
+    } else {
+        return "";
+    }
+}
+
+std::string HTTPConnection::get_cookie(const std::string &key) const {
+    auto it = this->input_cookies.find(key);
+    if (it != this->input_cookies.end()) {
         return it->second;
     } else {
         return "";
@@ -302,6 +355,10 @@ const SSMap & HTTPConnection::get_headers() const {
     return this->input_headers;
 }
 
+const SSMap & HTTPConnection::get_cookies() const {
+    return this->input_cookies;
+}
+
 SSMap & HTTPConnection::get_path_arguments() {
     return this->path_arguments;
 }
@@ -313,11 +370,54 @@ bool HTTPConnection::set_error_handler(const ErrorHandler &handler) {
     this->error_handler = handler;
     return true;
 }
-/*
-void set_cookie(const std::string &key, const std::string &value) {
-    this->output_cookies[key] = value;
+
+bool HTTPConnection::set_cookie(const std::string &key,
+                                const std::string &value,
+                                bool secure,
+                                time_t expires,
+                                const std::string &domain,
+                                const std::string &path,
+                                bool http_only) {
+    auto begin = this->output_cookies.lower_bound(key);
+    auto end = this->output_cookies.upper_bound(key);
+    for (auto it = begin; it != end; ++it) {
+        const CookieInfo &info = it->second;
+        if (std::get<3>(info) == domain && std::get<4>(info) == path) {
+            return false;
+        }
+    }
+    auto p = std::make_pair(key, std::forward_as_tuple(value, secure, expires,
+                                                       domain, path, http_only));
+    this->output_cookies.insert(p);
+    return true;
 }
-*/
+
+bool HTTPConnection::remove_cookie(const std::string &key,
+                                   const std::string &domain,
+                                   const std::string &path) {
+    bool found = false;
+    for (auto it = this->output_cookies.begin();
+         it != this->output_cookies.end(); ++it) {
+        const std::string &k = it->first;
+        if (k == key) {
+            const CookieInfo &info = it->second;
+            const std::string &d = std::get<3>(info);
+            const std::string &p = std::get<4>(info);
+            if (domain.empty() || d == domain) {
+                if (path.empty() || p == path) {
+                    this->output_cookies.erase(it);
+                    found = true;
+                }
+            }
+        }
+    }
+    return found;
+}
+
+void HTTPConnection::clear_cookies() {
+    this->output_cookies.clear();
+}
+
 bool HTTPConnection::add_header(const std::string &key, const std::string &value) {
     if (!this->output_headers || this->finished || this->chunked) {
         return false;
@@ -344,6 +444,9 @@ bool HTTPConnection::flush() {
         return false;
     }
     if (!this->chunked) {
+        for (auto &p: this->output_cookies) {
+            this->add_header("Set-Cookie", make_cookie_header(p.first, p.second));
+        }
         evhttp_send_reply_start(this->evreq, this->status_code,
                                 this->status_reason.c_str());
         this->chunked = true;
@@ -369,6 +472,9 @@ void HTTPConnection::finish() {
     if (!this->chunked) {
         if (!this->output_buffer) {
             return;
+        }
+        for (auto &p: this->output_cookies) {
+            this->add_header("Set-Cookie", make_cookie_header(p.first, p.second));
         }
         evhttp_send_reply(this->evreq, this->status_code,
                         this->status_reason.c_str(), this->output_buffer);

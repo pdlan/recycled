@@ -127,7 +127,7 @@ class Connection {
          *
          * @param key 参数名
          *
-         * @return 参数值(若一个参数名有多个参数值返回最后一个)
+         * @return 参数值(若一个参数名有多个参数值返回最后一个, 无此参数返回空字符串)
          */
         virtual std::string get_query_argument(const std::string &key) const = 0;
         /**
@@ -135,7 +135,7 @@ class Connection {
          *
          * @param key 参数名
          *
-         * @return 参数值(若一个参数名有多个参数值返回最后一个)
+         * @return 参数值(若一个参数名有多个参数值返回最后一个, 无此参数返回空字符串)
          */
         virtual std::string get_body_argument(const std::string &key) const = 0;
         /**
@@ -144,7 +144,7 @@ class Connection {
          *
          * @param key 参数名
          *
-         * @return 参数值(优先考虑URL Query参数)
+         * @return 参数值(优先考虑URL Query参数, 无此参数返回空字符串)
          */
         virtual std::string get_argument(const std::string &key) const = 0;
         /**
@@ -154,7 +154,7 @@ class Connection {
          *
          * @param key 参数名
          *
-         * @return 参数值
+         * @return 参数值(无此参数返回空字符串)
          */
         virtual std::string get_path_argument(const std::string &key) const = 0;
         /**
@@ -162,9 +162,17 @@ class Connection {
          *
          * @param key 请求头名(若一个请求头名有多个值返回最后一个)
          *
-         * @return 请求头值
+         * @return 请求头值(无此请求头返回空字符串)
          */
         virtual std::string get_header(const std::string &key) const = 0;
+        /**
+         * 取得Cookie
+         *
+         * @param key Cookie名
+         *
+         * @return Cookie值(无此Cookie返回空字符串)
+         */
+        virtual std::string get_cookie(const std::string &key) const = 0;
         /**
          * 取得所有指定名字的URL Query参数
          * 如URL Query为?arg=val1&arg=val2, 则get_query_arguments("arg")返回值为
@@ -204,6 +212,12 @@ class Connection {
          */
         virtual const SSMap & get_headers() const = 0;
         /**
+         * 取得所有Cookie
+         *
+         * @return Cookies Map
+         */
+        virtual const SSMap & get_cookies() const = 0;
+        /**
          * 取得所有Path参数
          *
          * @return Path参数Map的引用(可修改)
@@ -217,13 +231,57 @@ class Connection {
          * @return 设置成功返回true, 否则返回false
          */
         virtual bool set_error_handler(const ErrorHandler &handler) = 0;
-        //virtual void set_cookie(const std::string &key, const std::string &value) = 0;
+        /**
+        * 设置Cookie
+        *
+        * @param key Cookie名字
+        *
+        * @param value Cookie值
+        *
+        * @param secure 是否启用安全Cookie
+        *
+        * @param expires 过期时间(以秒为单位, 默认为1小时)
+        *
+        * @param domain 域名(可为空)
+        *
+        * @param path 路径(默认为"/")
+        *
+        * @param http_only 是否仅限HTTP(s)使用Cookie
+        * 若为true则javascript不能读写此Cookie
+        *
+        * @return 设置成功返回true, 否则返回false
+         */
+        virtual bool set_cookie(const std::string &key,
+                                const std::string &value,
+                                bool secure = false,
+                                time_t expires=3600,
+                                const std::string &domain="",
+                                const std::string &path="/",
+                                bool http_only = false) = 0;
+        /**
+        * 删除指定Cookie
+        *
+        * @param key Cookie名字
+        *
+        * @param domain 域名(若为空则删除所有)
+        *
+        * @param path 路径(若为空则删除所有)
+        *
+        * @return 删除成功返回true, 否则返回false
+         */
+        virtual bool remove_cookie(const std::string &key,
+                                   const std::string &domain="",
+                                   const std::string &path="") = 0;
+        /**
+        * 删除所有Cookies
+         */
+        virtual void clear_cookies() = 0;
         /**
          * 增加HTTP响应头
          *
          * @param key 响应头名
          *
-         * @param key 响应头值
+         * @param value 响应头值
          *
          * @return 增加成功返回true, 否则返回false
          */
