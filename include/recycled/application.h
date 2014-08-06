@@ -18,11 +18,22 @@ class ApplicationException: public std::exception {
 template<typename T>
 class Application {
     public:
+        /**
+         * 构造一个Application
+         * @param handlers Application需要的请求处理器
+         *
+         * @param args 这些参数将传给Server
+         */
         template<typename... Arguments>
         Application(const std::vector<HandlerStruct> &handlers, Arguments... args);
         Application(const Application &other) = delete;
         ~Application();
         const Application & operator=(const Application &other) = delete;
+        /**
+         * 调用Server的listen方法
+         *
+         * @param args 这些参数将传给Server
+         */
         template<typename... Arguments>
         void listen(Arguments... args);
     private:

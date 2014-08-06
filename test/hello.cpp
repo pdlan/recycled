@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <functional>
 #include <recycled.h>
 
@@ -6,10 +5,7 @@ using namespace recycled;
 
 // we suggest using it.
 void function_handler(Connection &conn) {
-    const UploadFile * file = conn.get_file("test");
-    FILE *f = fopen("1.png", "w");
-    fwrite(file->data, file->size, sizeof(char), f);
-    fclose(f);
+    conn.write("hello, function handler.");
 }
 
 // you can use std::bind to convert your custom function to handler function.
@@ -31,10 +27,10 @@ class IndexHandler: public ClassHandler {
 
 int main() {
     auto lambda_handler = [](Connection &conn) {
-        conn.write("hello, lambda handler");
+        conn.write("hello, lambda handler.");
     };
     auto custom_handler_binded = std::bind(custom_handler,
-                                           "hello, custom handler",
+                                           "hello, custom handler.",
                                            std::placeholders::_1);
     Application<HTTPServer> app({
         {"/", IndexHandler(), {HTTPMethod::GET}},

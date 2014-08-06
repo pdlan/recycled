@@ -16,6 +16,9 @@
 #include "recycled/handler.h"
 
 namespace recycled {
+/**
+ * HTTP方法类型枚举
+ */
 enum class HTTPMethod {GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, Other};
 
 static const std::set<int> StatusCodes = {
@@ -75,12 +78,15 @@ typedef std::map<std::string, std::string> SSMap;
 typedef std::multimap<std::string, std::string> SSMultiMap;
 
 struct UploadFile {
-    std::string filename;
-    std::string content_type;
-    const char *data;
-    size_t size;
+    std::string filename; /**< 文件名 */
+    std::string content_type; /**< 文件的Content-Type */
+    const char *data; /**< 文件数据 */
+    size_t size; /**< 文件大小 */
 };
 
+/**
+ * 规范HTTP Connection的借口
+ */
 class Connection {
     public:
         /**

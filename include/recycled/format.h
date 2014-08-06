@@ -179,17 +179,44 @@ std::string format(const std::string &format,
     return buf.str();
 }
 
+/**
+ * 类似Python的字符串格式化方法
+ * 如: "%s %d %f" % _("test", 123, 123.456789)
+ *
+ * @param format 格式
+ *
+ * @param args 格式的参数, 个数由编译时确定, 不可变
+ *
+ * @return 格式化后的字符串
+ */
 template<typename... Arguments>
 std::string operator%(const std::string &format,
                       const std::tuple<Arguments...> &args) {
     return recycled::format::format(format, args);
 }
 
+/**
+ * 构造一个tuple, 等于std::make_pair
+ *
+ * @param args 要构建的元组中的变量
+ *
+ * @return 构造的元组
+ */
 template<typename... Arguments>
 std::tuple<Arguments...> _(Arguments... args) {
     return std::tuple<Arguments...>(args...);
 }
 
+/**
+ * 接受一个参数的格式化版本
+ * 如std::string("%d") % 123
+ *
+ * @param format 格式
+ *
+ * @param arg 格式的参数
+ *
+ * @return 格式化后的字符串
+ */
 template<typename T>
 std::string operator%(const std::string &format,
                       const T &arg)  {
