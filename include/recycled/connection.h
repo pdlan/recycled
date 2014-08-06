@@ -181,7 +181,7 @@ class Connection {
          */
         virtual std::string get_argument(const std::string &key) const = 0;
         /**
-         * 取得Path参数
+         * 取得Path参数.
          * 如请求路径为/article/hello, 路由匹配模式为/article/<id>,
          * 则get_path_argument("id")返回值为"hello"
          *
@@ -207,7 +207,7 @@ class Connection {
          */
         virtual std::string get_cookie(const std::string &key) const = 0;
         /**
-         * 取得所有指定名字的URL Query参数
+         * 取得所有指定名字的URL Query参数.
          * 如URL Query为?arg=val1&arg=val2, 则get_query_arguments("arg")返回值为
          * {"val1", "val2"}
          *
@@ -332,7 +332,7 @@ class Connection {
          */
         virtual void clear_headers() = 0;
         /**
-         * 将缓冲区的内容全部发送并清空缓冲区
+         * 将缓冲区的内容全部发送并清空缓冲区.
          * flush后将不能增加, 删除响应头,
          * 也不能使用重定向、发送错误或修改响应状态
          *
@@ -340,7 +340,7 @@ class Connection {
          */
         virtual bool flush() = 0;
         /**
-         * 完成响应
+         * 完成响应.
          * finish后将不能增加, 删除响应头, 不能向Body输出数据
          * 也不能使用重定向、发送错误或修改响应状态
          *
