@@ -2,7 +2,6 @@
 #include "recycled/connection.h"
 #include "recycled/format.h"
 #include "recycled/handler.h"
-#include "recycled/httpconnection.h"
 #include "recycled/httpserver.h"
 #include "recycled/ioloop.h"
 #include "recycled/router.h"

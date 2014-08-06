@@ -5,6 +5,7 @@
 #include <malloc.h>
 #include <sys/queue.h>
 #include <string>
+#include <algorithm>
 #include <sstream>
 #include <vector>
 #include <tuple>
@@ -128,9 +129,9 @@ std::string make_cookie_header(const std::string &key, const CookieInfo &info) {
 }
 
 HTTPConnection::HTTPConnection(evhttp_request *evreq):
-    evreq(evreq), input_buffer(NULL), output_buffer(NULL),
-    output_headers(NULL), finished(false), chunked(false) {
-}
+    evreq(evreq), input_body(nullptr), input_body_size(0),
+    output_buffer(nullptr), output_headers(nullptr),
+    finished(false), chunked(false) {}
 
 HTTPConnection::~HTTPConnection() {
     if (this->output_buffer) {
@@ -138,6 +139,9 @@ HTTPConnection::~HTTPConnection() {
     }
     if (this->output_headers) {
         evhttp_clear_headers(this->output_headers);
+    }
+    if (this->input_body) {
+        delete this->input_body;
     }
 }
 
@@ -149,7 +153,7 @@ bool HTTPConnection::initialize() {
     if (!this->output_buffer) {
         return false;
     }
-    this->input_buffer = evhttp_request_get_input_buffer(this->evreq);
+    evbuffer *input_buffer = evhttp_request_get_input_buffer(this->evreq);
     evkeyvalq *input_headers_ev = evhttp_request_get_input_headers(this->evreq);
     if (!evkeyvalq_to_map(input_headers_ev, this->input_headers)) {
         return false;
@@ -187,17 +191,13 @@ bool HTTPConnection::initialize() {
     if (decoded) {
         evhttp_uri_free(decoded);
     }
-    size_t body_length = evbuffer_get_length(this->input_buffer);
+    size_t body_length = evbuffer_get_length(input_buffer);
+    this->input_body_size = body_length;
     if (body_length) {
-        char *buffer = new char[body_length + 1];
-        memcpy(buffer, evbuffer_pullup(this->input_buffer, body_length), body_length);
-        buffer[body_length] = '\0'; //regard body as string.
-        evkeyvalq arguments_ev;
-        if (evhttp_parse_query_str(buffer, &arguments_ev) == 0) {
-            evkeyvalq_to_map(&arguments_ev, this->body_arguments);
-            evhttp_clear_headers(&arguments_ev);
-        }
-        delete buffer;
+        this->input_body = new char[body_length + 1];
+        memcpy(this->input_body, evbuffer_pullup(input_buffer, body_length),
+               body_length);
+        this->parse_input_body();
     }
     const std::string &cookie_header = this->get_header("Cookie");
     parse_cookie(cookie_header, this->input_cookies);
@@ -245,6 +245,23 @@ bool HTTPConnection::set_status(int status_code, const std::string &reason) {
 
 HTTPMethod HTTPConnection::get_method() const {
     return this->method;
+}
+
+const char * HTTPConnection::get_body() const {
+    return this->input_body;
+}
+
+size_t HTTPConnection::get_body_size() const {
+    return this->input_body_size;
+}
+
+const UploadFile * HTTPConnection::get_file(const std::string &name) const {
+    auto it = this->files.find(name);
+    if (it != this->files.end()) {
+        return &it->second;
+    } else {
+        return nullptr;
+    }
 }
 
 std::string HTTPConnection::get_path() const {
@@ -506,4 +523,129 @@ bool HTTPConnection::redirect(const std::string &key, int status) {
 
 bool HTTPConnection::is_finished() const {
     return this->finished;
+}
+
+void HTTPConnection::parse_input_body() {
+    if (!this->input_body) {
+        return;
+    }
+    const char *mpdf = "multipart/form-data";
+    const std::string &content_type = this->get_header("Content-Type");
+    if (content_type == "application/x-www-form-urlencoded") {
+        this->input_body[this->input_body_size] = '\0'; //regard body as string.
+        evkeyvalq arguments_ev;
+        if (evhttp_parse_query_str(this->input_body, &arguments_ev) == 0) {
+            evkeyvalq_to_map(&arguments_ev, this->body_arguments);
+            evhttp_clear_headers(&arguments_ev);
+        }
+    } else if (content_type.length() >= strlen(mpdf) &&
+               content_type.substr(0, strlen(mpdf)) == mpdf) {
+        size_t pos = content_type.find("boundary=");
+        if (pos == std::string::npos) {
+            return;
+        }
+        size_t post_pos = pos + strlen("boundary=");
+        size_t boundary_length = content_type.length() - post_pos;
+        const std::string &boundary = content_type.substr(post_pos,
+                                                          boundary_length);
+        char *buf = this->input_body;
+        size_t size = this->input_body_size;
+        std::string boundary_tmp = "--" + boundary;
+        while (true) {
+            char *new_buf =
+                std::search(buf, buf + size, boundary_tmp.begin(),
+                            boundary_tmp.end());
+            if (new_buf == buf + size) {
+                break;
+            }
+            size_t chunk_size = new_buf - buf;
+            if (!chunk_size) {
+                buf += boundary_tmp.length();
+                size -= boundary_tmp.length();
+                continue;
+            }
+            if (chunk_size < 6) {
+                buf += boundary_tmp.length();
+                size -= boundary_tmp.length();
+                continue;
+            }
+            const char *chunk = buf;
+            std::string delimiter = "\r\n\r\n";
+            const char *chunk_body =
+                std::search(chunk, chunk + chunk_size, delimiter.begin(),
+                            delimiter.end());
+            if (chunk_body == chunk + chunk_size) {
+                continue;
+            }
+            std::string name, filename, chunk_content_type;
+            size_t chunk_head_size = chunk_body - chunk - 2;
+            std::istringstream chunk_head;
+            chunk_head.str(std::string(chunk + 2, chunk_head_size));
+            while (!chunk_head.eof()) {
+                std::string line;
+                std::getline(chunk_head, line);
+                size_t pos1 = line.find(": ");
+                if (pos1 == std::string::npos) {
+                    continue;
+                }
+                const std::string &key = line.substr(0, pos1);
+                const std::string &value = line.substr(pos1 + 2,
+                                                line.length() - pos1 - 2);
+                if (key == "Content-Type") {
+                    chunk_content_type = value;
+                } else if (key == "Content-Disposition") {
+                    size_t pos_find = 0, pos_last = 0;
+                    std::vector<std::string> parts;
+                    while ((pos_find = value.find("; ", pos_last))
+                           != std::string::npos) {
+                        size_t part_length = pos_find - pos_last;
+                        const std::string &part = value.substr(pos_last,
+                                                               part_length);
+                        parts.push_back(part);
+                        pos_last = pos_find + 2;
+                    }
+                    int part_length = value.length() - pos_last;
+                    if (value.back() == '\r') {
+                        --part_length;
+                    }
+                    if (part_length >= 0) {
+                        const std::string &part = value.substr(pos_last,
+                                                               part_length);
+                        parts.push_back(part);
+                    }
+                    for (const std::string &part: parts) {
+                        size_t pos_e = part.find("=");
+                        if (pos_e == std::string::npos) {
+                            continue;
+                        }
+                        const std::string part_key = part.substr(0, pos_e);
+                        const std::string part_value =
+                            part.substr(pos_e + 1, part.length() - pos_e - 1);
+                        if (part_value.length() < 2) {
+                            continue;
+                        }
+                        if (part_key == "name") {
+                            name =
+                                part_value.substr(1, part_value.length() - 2);
+                        } else if (part_key == "filename") {
+                            filename =
+                                part_value.substr(1, part_value.length() - 2);
+                        }
+                    }
+                }
+            }
+            chunk_body += 4;
+            size_t chunk_body_size = chunk_size - (chunk_body - chunk) - 2;
+            if (filename.empty()) {
+                std::string value(chunk_body, chunk_body_size);
+                this->body_arguments.insert(std::make_pair(name, value));
+            } else {
+                UploadFile file = {filename, content_type,
+                                   chunk_body, chunk_body_size};
+                this->files.insert(std::make_pair(name, file));
+            }
+            buf = new_buf + boundary_tmp.length();
+            size -= chunk_size + boundary_tmp.length();
+        }
+    }
 }

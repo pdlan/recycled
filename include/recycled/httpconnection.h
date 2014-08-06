@@ -40,6 +40,9 @@ class HTTPConnection: public Connection {
         bool write(const std::string &str);
         bool set_status(int status_code, const std::string &reason = "");
         HTTPMethod get_method() const;
+        const char * get_body() const;
+        size_t get_body_size() const;
+        const UploadFile * get_file(const std::string &name) const;
         std::string get_path() const;
         std::string get_uri() const;
         std::string get_query_argument(const std::string &key) const;
@@ -79,18 +82,22 @@ class HTTPConnection: public Connection {
         evhttp_request *evreq;
         ErrorHandler error_handler;
         std::string uri, path;
-        evbuffer *input_buffer, *output_buffer;
+        char *input_body;
+        size_t input_body_size;
+        evbuffer *output_buffer;
         evkeyvalq *output_headers;
         SSMap input_headers;
         SSMultiMap query_arguments, body_arguments;
         SSMap path_arguments;
         SSMap input_cookies;
+        std::map<std::string, UploadFile> files;
         std::multimap<std::string, CookieInfo> output_cookies;
         int status_code;
         std::string status_reason;
         HTTPMethod method;
         bool finished;
         bool chunked;
+        void parse_input_body();
 };
 }
 #endif

@@ -74,10 +74,17 @@ typedef std::vector<std::string> SVector;
 typedef std::map<std::string, std::string> SSMap;
 typedef std::multimap<std::string, std::string> SSMultiMap;
 
+struct UploadFile {
+    std::string filename;
+    std::string content_type;
+    const char *data;
+    size_t size;
+};
+
 class Connection {
     public:
         /**
-         * 向body输出数据
+         * 向响应Body输出数据
          *
          * @param data 要输出的数据
          *
@@ -87,7 +94,7 @@ class Connection {
          */
         virtual bool write(const char *data, size_t size) = 0;
          /**
-         * 向body输出字符串
+         * 向响应Body输出字符串
          *
          * @param str 要输出的字符串
          *
@@ -110,6 +117,26 @@ class Connection {
          * @return HTTP请求方法
          */
         virtual HTTPMethod get_method() const = 0;
+        /**
+         * 取得请求Body
+         *
+         * @return 请求Body的指针
+         */
+        virtual const char * get_body() const = 0;
+        /**
+         * 取得请求Body的大小
+         *
+         * @return 请求Body的大小(以sizeof(char)为单位)
+         */
+        virtual size_t get_body_size() const = 0;
+        /**
+         * 取得上传的文件
+         *
+         * @param name 上传文件的名字(即<input>的name, 非文件名)
+         *
+         * @return 上传文件(若无此文件返回空指针)
+         */
+        virtual const UploadFile * get_file(const std::string &name) const = 0;
         /**
          * 取得HTTP请求路径
          *
